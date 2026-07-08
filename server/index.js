@@ -6,17 +6,16 @@ const EventData = require('./model/events-data.model');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 
-// Database connection
+
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/events-db';
 
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log(`Successfully connected to MongoDB database: events-db`);
-    // Seed initial data if the database is empty
     await seedInitialData();
   })
   .catch((err) => {
@@ -24,13 +23,13 @@ mongoose.connect(MONGODB_URI)
     console.log('Ensure MongoDB is running locally on port 27017.');
   });
 
-// Seeding function
+
 async function seedInitialData() {
   try {
     const count = await EventData.countDocuments();
     if (count === 0) {
       console.log('Seeding initial school club events data...');
-      
+
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(9, 0, 0, 0);
@@ -84,7 +83,7 @@ async function seedInitialData() {
         {
           title: 'Coffee Painting & Charcoal Sketching workshop',
           description: 'A relaxing afternoon learning how to sketch with charcoal and paint using espresso coffee. Art supplies will be provided.',
-          schedule: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3), // 3 days from now
+          schedule: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
           venue: 'Fine Arts Room 101',
           type: 'workshop',
           status: 'drafted',
@@ -95,7 +94,7 @@ async function seedInitialData() {
         {
           title: 'Inter-Club Basketball Championship',
           description: 'The annual inter-club sports championship, where club representatives face off on the court.',
-          schedule: new Date(Date.now() + 1000 * 60 * 60 * 24 * 15), // 15 days from now
+          schedule: new Date(Date.now() + 1000 * 60 * 60 * 24 * 15),
           venue: 'School Gymnasium',
           type: 'sports',
           status: 'postponed',
@@ -113,9 +112,7 @@ async function seedInitialData() {
   }
 }
 
-// REST API Endpoints
 
-// 1. GET all events
 app.get('/api/events', async (req, res) => {
   try {
     const { status, type } = req.query;
@@ -130,7 +127,7 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// 2. GET a single event by ID
+
 app.get('/api/events/:id', async (req, res) => {
   try {
     const event = await EventData.findById(req.params.id);
@@ -143,12 +140,9 @@ app.get('/api/events/:id', async (req, res) => {
   }
 });
 
-// 3. POST a new event
 app.post('/api/events', async (req, res) => {
   try {
     const { title, description, schedule, venue, type, status, organizingClub, capacity } = req.body;
-    
-    // Validation
     if (!title || !schedule || !venue || !organizingClub) {
       return res.status(400).json({ error: 'Title, schedule, venue, and organizingClub are required fields.' });
     }
@@ -172,11 +166,10 @@ app.post('/api/events', async (req, res) => {
   }
 });
 
-// 4. PUT update an event
 app.put('/api/events/:id', async (req, res) => {
   try {
     const { title, description, schedule, venue, type, status, organizingClub, capacity } = req.body;
-    
+
     const event = await EventData.findById(req.params.id);
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
@@ -198,7 +191,7 @@ app.put('/api/events/:id', async (req, res) => {
   }
 });
 
-// 5. DELETE an event
+
 app.delete('/api/events/:id', async (req, res) => {
   try {
     const deletedEvent = await EventData.findByIdAndDelete(req.params.id);
@@ -211,14 +204,9 @@ app.delete('/api/events/:id', async (req, res) => {
   }
 });
 
-// Attendance Integration Endpoints
-
-// 6. POST check-in/record attendance (used by external attendance systems)
 app.post('/api/events/:id/attendance', async (req, res) => {
   try {
     const { studentId, studentName, email } = req.body;
-    
-    // Basic body validation
     if (!studentId || !studentName) {
       return res.status(400).json({ error: 'studentId and studentName are required to register attendance.' });
     }
@@ -232,24 +220,20 @@ app.post('/api/events/:id/attendance', async (req, res) => {
       return res.status(400).json({ error: 'Cannot record attendance for a cancelled event.' });
     }
 
-    // Check if student already checked in
     const isAlreadyCheckedIn = event.attendanceList.some(
       (record) => record.studentId.toLowerCase() === studentId.toLowerCase()
     );
 
     if (isAlreadyCheckedIn) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         error: 'Student already checked in for this event.',
-        alreadyCheckedIn: true 
+        alreadyCheckedIn: true
       });
     }
 
-    // Check capacity
     if (event.capacity && event.attendanceList.length >= event.capacity) {
       return res.status(400).json({ error: 'Event capacity has been reached.' });
     }
-
-    // Add check-in
     const checkInRecord = {
       studentId,
       studentName,
@@ -260,8 +244,8 @@ app.post('/api/events/:id/attendance', async (req, res) => {
     event.attendanceList.push(checkInRecord);
     await event.save();
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       message: 'Attendance recorded successfully.',
       checkedIn: checkInRecord,
       eventSummary: {
@@ -275,7 +259,6 @@ app.post('/api/events/:id/attendance', async (req, res) => {
   }
 });
 
-// 7. GET list of attendance for a specific event
 app.get('/api/events/:id/attendance', async (req, res) => {
   try {
     const event = await EventData.findById(req.params.id);
@@ -292,7 +275,7 @@ app.get('/api/events/:id/attendance', async (req, res) => {
   }
 });
 
-// 8. DELETE attendance record (remove check-in)
+
 app.delete('/api/events/:id/attendance/:studentId', async (req, res) => {
   try {
     const { id, studentId } = req.params;
