@@ -9,7 +9,6 @@ export default function Main() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [activeTab, setActiveTab] = useState('attendance');
   const [activeNav, setActiveNav] = useState('view');
 
   const [filterType, setFilterType] = useState('all');
@@ -25,14 +24,11 @@ export default function Main() {
     venue: '',
     type: 'seminar',
     status: 'drafted',
-    organizingClub: '',
+    organizingClub: 'All Organization',
     capacity: 100
   });
 
-  const [simName, setSimName] = useState('');
-  const [simId, setSimId] = useState('');
-  const [simEmail, setSimEmail] = useState('');
-  const [simAlert, setSimAlert] = useState(null);
+
 
   const fetchEvents = async (autoSelectId = null) => {
     try {
@@ -79,7 +75,7 @@ export default function Main() {
       venue: '',
       type: 'seminar',
       status: 'drafted',
-      organizingClub: '',
+      organizingClub: 'All Organization',
       capacity: 100
     });
     setActiveNav('create');
@@ -96,7 +92,7 @@ export default function Main() {
         venue: '',
         type: 'seminar',
         status: 'drafted',
-        organizingClub: '',
+        organizingClub: 'All Organization',
         capacity: 100
       });
       setActiveNav('view');
@@ -155,37 +151,7 @@ export default function Main() {
     }
   };
 
-  const handleSimulateCheckIn = async (e) => {
-    e.preventDefault();
-    if (!simId || !simName) {
-      setSimAlert({ type: 'error', message: 'Student ID and Student Name are required.' });
-      return;
-    }
 
-    setSimAlert(null);
-    try {
-      const res = await axios.post(`${API_BASE}/events/${selectedEvent._id}/attendance`, {
-        studentId: simId,
-        studentName: simName,
-        email: simEmail
-      });
-
-      setSimAlert({ type: 'success', message: res.data.message });
-      setSimId('');
-      setSimName('');
-      setSimEmail('');
-
-      fetchEvents(selectedEvent._id);
-    } catch (err) {
-      const status = err.response?.status;
-      const errMsg = err.response?.data?.error || err.message;
-      if (status === 409) {
-        setSimAlert({ type: 'warning', message: errMsg });
-      } else {
-        setSimAlert({ type: 'error', message: errMsg });
-      }
-    }
-  };
 
   const handleRemoveCheckIn = async (studentId) => {
     if (!window.confirm(`Are you sure you want to remove check-in for student: ${studentId}?`)) {
@@ -212,10 +178,7 @@ export default function Main() {
     });
   };
 
-  const copyEndpointUrl = (url) => {
-    navigator.clipboard.writeText(url);
-    alert('API URL copied to clipboard!');
-  };
+
 
   return (
     <div className="ems-container">
@@ -310,14 +273,18 @@ export default function Main() {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Organizing Club</label>
-                    <input
-                      type="text"
+                    <select
                       required
-                      placeholder="e.g. Computer Society"
                       className="form-input"
                       value={formState.organizingClub}
                       onChange={(e) => setFormState({ ...formState, organizingClub: e.target.value })}
-                    />
+                    >
+                      <option value="All Organization">All Organization</option>
+                      <option value="ICPEP">ICPEP</option>
+                      <option value="JPICE">JPICE</option>
+                      <option value="MICRO-JPCS">MICRO-JPCS</option>
+                      <option value="UAPSA">UAPSA</option>
+                    </select>
                   </div>
 
                   <div className="form-group">
@@ -342,18 +309,6 @@ export default function Main() {
                       className="form-input"
                       value={formState.schedule}
                       onChange={(e) => setFormState({ ...formState, schedule: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Capacity</label>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      className="form-input"
-                      value={formState.capacity}
-                      onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value) || 100 })}
                     />
                   </div>
                 </div>
@@ -459,7 +414,6 @@ export default function Main() {
                         className={`event-card ${selectedEvent?._id === event._id ? 'selected' : ''}`}
                         onClick={() => {
                           setSelectedEvent(event);
-                          setSimAlert(null);
                         }}
                       >
                         <div className="event-card-header">
@@ -488,10 +442,7 @@ export default function Main() {
                         </div>
 
                         <div className="event-actions">
-                          <div className="attendance-count-summary">
-                            <span>👥 Attendees:</span>
-                            <strong>{event.attendanceList?.length || 0} / {event.capacity || 100}</strong>
-                          </div>
+                          {/* Attendees count removed */}
 
                           <div className="card-action-btns">
                             <button
@@ -516,167 +467,7 @@ export default function Main() {
                 )}
               </div>
 
-              <div className="detail-column">
-                {selectedEvent ? (
-                  <div className="detail-panel">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span className="badge badge-type">{selectedEvent.type}</span>
-                      <span className={`badge badge-${selectedEvent.status}`}>{selectedEvent.status}</span>
-                    </div>
 
-                    <h3 className="detail-panel-title">{selectedEvent.title}</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-                      Organized by <strong>{selectedEvent.organizingClub}</strong>
-                    </p>
-
-                    <div className="tab-nav">
-                      <button
-                        className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('attendance')}
-                      >
-                        Attendance ({selectedEvent.attendanceList?.length || 0})
-                      </button>
-                      <button
-                        className={`tab-btn ${activeTab === 'integration' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('integration')}
-                      >
-                        API Connection
-                      </button>
-                    </div>
-
-                    {activeTab === 'attendance' && (
-                      <div className="attendance-tab-content">
-                        <div className="simulation-box">
-                          <h4 style={{ fontSize: '12.5px', color: 'var(--color-primary)', fontWeight: '700' }}>
-                            🔗 Simulate Scanner Check-In
-                          </h4>
-                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
-                            Simulate an RFID/barcode check-in request by filling out the details below.
-                          </p>
-
-                          <form onSubmit={handleSimulateCheckIn} className="sim-input-group">
-                            <input
-                              type="text"
-                              placeholder="Student ID (e.g. 2026-0041)"
-                              className="sim-input"
-                              value={simId}
-                              onChange={(e) => setSimId(e.target.value)}
-                            />
-                            <input
-                              type="text"
-                              placeholder="Student Name (e.g. Timothy Smith)"
-                              className="sim-input"
-                              value={simName}
-                              onChange={(e) => setSimName(e.target.value)}
-                            />
-                            <input
-                              type="email"
-                              placeholder="Email Address (Optional)"
-                              className="sim-input"
-                              value={simEmail}
-                              onChange={(e) => setSimEmail(e.target.value)}
-                            />
-
-                            <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '12px', justifyContent: 'center', marginTop: '4px' }}>
-                              Simulate Card Scan
-                            </button>
-                          </form>
-
-                          {simAlert && (
-                            <div className={`sim-alert sim-alert-${simAlert.type}`}>
-                              {simAlert.type === 'success' ? '✅' : simAlert.type === 'warning' ? '⚠️' : '❌'} {simAlert.message}
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <h4 style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '10px', fontWeight: '700' }}>
-                            Attendance Records
-                          </h4>
-
-                          {!selectedEvent.attendanceList || selectedEvent.attendanceList.length === 0 ? (
-                            <div className="empty-attendance-text">
-                              No students checked in yet. Scan above or integrate card scanners to record check-ins.
-                            </div>
-                          ) : (
-                            <div className="attendance-list-container">
-                              {selectedEvent.attendanceList.map((record) => (
-                                <div key={record.studentId} className="attendance-item">
-                                  <div className="student-info">
-                                    <h4>{record.studentName}</h4>
-                                    <p>ID: {record.studentId} {record.email ? `• ${record.email}` : ''}</p>
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div className="checked-in-time">
-                                      {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                    <button
-                                      onClick={() => handleRemoveCheckIn(record.studentId)}
-                                      className="btn-icon btn-icon-danger"
-                                      style={{ width: '26px', height: '26px', fontSize: '11px' }}
-                                      title="Remove Check-in"
-                                    >
-                                      ❌
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeTab === 'integration' && (
-                      <div className="integration-tab-content">
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                          Connect external devices (RFID readers, barcode scanners) by calling this REST endpoint when a student scans their card:
-                        </p>
-
-                        <div className="integration-card">
-                          <h4>1. REST Endpoint URL</h4>
-                          <div className="endpoint-url">
-                            <span>{`${API_BASE}/events/${selectedEvent._id}/attendance`}</span>
-                            <button
-                              onClick={() => copyEndpointUrl(`${API_BASE}/events/${selectedEvent._id}/attendance`)}
-                              className="copy-btn"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="integration-card">
-                          <h4>2. Expected POST Payload (JSON)</h4>
-                          <pre className="code-snippet" style={{ color: '#15803d' }}>
-                            {`{
-  "studentId": "2026-1025",
-  "studentName": "Alex Rivera",
-  "email": "alex.rivera@school.edu"
-}`}
-                          </pre>
-                        </div>
-
-                        <div className="integration-card">
-                          <h4>3. Example Terminal Test (cURL)</h4>
-                          <pre className="code-snippet">
-                            {`curl -X POST \\
-  -H "Content-Type: application/json" \\
-  -d '{"studentId":"2026-1025","studentName":"Alex Rivera"}' \\
-  "${API_BASE}/events/${selectedEvent._id}/attendance"`}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="detail-panel-placeholder">
-                    <div className="placeholder-icon">📋</div>
-                    <h3>Select an Event</h3>
-                    <p>Choose an event from the catalog list to manage attendance and access integration options.</p>
-                  </div>
-                )}
-              </div>
             </div>
           </>
         )}
@@ -718,14 +509,18 @@ export default function Main() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Organizing Club</label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="e.g. Arts Club"
                     className="form-input"
                     value={formState.organizingClub}
                     onChange={(e) => setFormState({ ...formState, organizingClub: e.target.value })}
-                  />
+                  >
+                    <option value="All Organization">All Organization</option>
+                    <option value="ICPEP">ICPEP</option>
+                    <option value="JPICE">JPICE</option>
+                    <option value="MICRO-JPCS">MICRO-JPCS</option>
+                    <option value="UAPSA">UAPSA</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -750,18 +545,6 @@ export default function Main() {
                     className="form-input"
                     value={formState.schedule}
                     onChange={(e) => setFormState({ ...formState, schedule: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Event Capacity</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    className="form-input"
-                    value={formState.capacity}
-                    onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value) || 100 })}
                   />
                 </div>
               </div>
