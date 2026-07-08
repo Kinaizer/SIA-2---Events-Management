@@ -12,16 +12,15 @@ app.use(cors());
 app.use(express.json());
 
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/events-db';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI)
   .then(async () => {
-    console.log(`Successfully connected to MongoDB database: events-db`);
+    console.log(`Successfully connected to MongoDB database`);
     await seedInitialData();
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err.message);
-    console.log('Ensure MongoDB is running locally on port 27017.');
   });
 
 
