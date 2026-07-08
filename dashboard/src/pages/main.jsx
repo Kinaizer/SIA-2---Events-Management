@@ -46,7 +46,7 @@ export default function Main() {
       }
     } catch (err) {
       console.error('Error fetching events:', err);
-      setError('Could not connect to the backend server. Please verify it is running on port 5001.');
+      setError('Could not connect to the backend server. Please verify it is running.');
     } finally {
       setLoading(false);
     }
