@@ -64,7 +64,7 @@ const eventSchema = new mongoose.Schema({
   attendanceList: [attendanceSchema]
 }, {
   timestamps: true,
-  collection: 'events-data' // Explicitly maps to user's database collection
+  collection: 'events-data'
 });
 
 module.exports = mongoose.model('EventData', eventSchema);
