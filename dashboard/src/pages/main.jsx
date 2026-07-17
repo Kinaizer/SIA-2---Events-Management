@@ -211,10 +211,7 @@ export default function Main() {
             <span className="stat-label">Total Events</span>
             <span className="stat-value">{totalEvents}</span>
           </div>
-          <div className="sidebar-stat-box">
-            <span className="stat-label">Checked-In Students</span>
-            <span className="stat-value">{totalCheckedIn}</span>
-          </div>
+
         </div>
       </aside>
 
