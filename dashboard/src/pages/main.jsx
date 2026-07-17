@@ -184,8 +184,11 @@ export default function Main() {
     <div className="ems-container">
       <aside className="ems-sidebar">
         <div className="sidebar-logo">
-          <h1>🎓 ClubEvent</h1>
-          <p>School Events Management</p>
+          <img src="/logo.png" alt="SEAIT Logo" className="sidebar-logo-img" />
+          <div className="sidebar-logo-text">
+            <p className="sidebar-logo-name">School of Engineering, Architecture, and Information Technology</p>
+            <span className="sidebar-logo-sub">Events Management</span>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -193,13 +196,13 @@ export default function Main() {
             onClick={() => setActiveNav('view')}
             className={`sidebar-nav-item ${activeNav === 'view' ? 'active' : ''}`}
           >
-            <span>📅</span> View Events
+            View Events
           </button>
           <button
             onClick={handleOpenCreateTab}
             className={`sidebar-nav-item ${activeNav === 'create' ? 'active' : ''}`}
           >
-            <span>➕</span> Create Event
+            Create Event
           </button>
         </nav>
 
