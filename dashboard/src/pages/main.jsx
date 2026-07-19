@@ -15,6 +15,7 @@ export default function Main() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState(null);
   const [editingEventId, setEditingEventId] = useState(null);
 
   const [formState, setFormState] = useState({
@@ -78,11 +79,29 @@ export default function Main() {
       organizingClub: 'All Organization',
       capacity: 100
     });
+    setFormError(null);
     setActiveNav('create');
   };
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
+    setFormError(null);
+
+    // Validate that the event date is not in the past
+    if (formState.schedule) {
+      const selectedDate = new Date(formState.schedule);
+      const now = new Date();
+      if (selectedDate < now) {
+        setFormError(
+          `The selected date and time (${selectedDate.toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          })}) has already passed. Please choose a future date and time.`
+        );
+        return;
+      }
+    }
+
     try {
       const res = await axios.post(`${API_BASE}/events`, formState);
       setFormState({
@@ -95,10 +114,11 @@ export default function Main() {
         organizingClub: 'All Organization',
         capacity: 100
       });
+      setFormError(null);
       setActiveNav('view');
       fetchEvents(res.data._id);
     } catch (err) {
-      alert('Event creation failed: ' + (err.response?.data?.error || err.message));
+      setFormError('Event creation failed: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -246,6 +266,12 @@ export default function Main() {
               <p>Fill out the fields below to schedule a new student club event.</p>
 
               <form onSubmit={handleCreateEvent} className="creation-form">
+                {formError && (
+                  <div className="form-error-banner">
+                    <span className="form-error-icon">⚠️</span>
+                    <span>{formError}</span>
+                  </div>
+                )}
                 <div className="form-group form-group-full">
                   <label>Event Title</label>
                   <input
@@ -308,7 +334,11 @@ export default function Main() {
                       required
                       className="form-input"
                       value={formState.schedule}
-                      onChange={(e) => setFormState({ ...formState, schedule: e.target.value })}
+                      min={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                      onChange={(e) => {
+                        setFormError(null);
+                        setFormState({ ...formState, schedule: e.target.value });
+                      }}
                     />
                   </div>
                 </div>
