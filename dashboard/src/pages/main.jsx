@@ -275,6 +275,13 @@ export default function Main() {
         </nav>
 
         <div className="sidebar-footer">
+          <a
+            href="https://school-organization-management-ecos.vercel.app/dashboard"
+            className="btn-primary"
+            style={{ textDecoration: 'none', justifyContent: 'center', marginBottom: '16px' }}
+          >
+            Back to Dashboard
+          </a>
           <div className="sidebar-stat-box">
             <span className="stat-label">Total Events</span>
             <span className="stat-value">{totalEvents}</span>
