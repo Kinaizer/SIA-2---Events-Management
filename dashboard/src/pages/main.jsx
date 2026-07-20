@@ -13,6 +13,9 @@ export default function Main() {
 
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const EVENTS_PER_PAGE = 7;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState(null);
@@ -58,10 +61,29 @@ export default function Main() {
   }, []);
 
   const filteredEvents = events.filter(event => {
+    if (event.status === 'drafted') return false; // drafts only visible on Create page
     const matchesType = filterType === 'all' || event.type === filterType;
     const matchesStatus = filterStatus === 'all' || event.status === filterStatus;
-    return matchesType && matchesStatus;
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q ||
+      event.title?.toLowerCase().includes(q) ||
+      event.venue?.toLowerCase().includes(q) ||
+      event.organizingClub?.toLowerCase().includes(q) ||
+      event.type?.toLowerCase().includes(q) ||
+      event.description?.toLowerCase().includes(q);
+    return matchesType && matchesStatus && matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / EVENTS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedEvents = filteredEvents.slice((safePage - 1) * EVENTS_PER_PAGE, safePage * EVENTS_PER_PAGE);
+
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+  };
+  const handleFilterType = (val) => { setFilterType(val); setCurrentPage(1); };
+  const handleFilterStatus = (val) => { setFilterStatus(val); setCurrentPage(1); };
 
   const totalEvents = events.length;
   const activeEvents = events.filter(e => e.status === 'active').length;
@@ -146,7 +168,12 @@ export default function Main() {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_BASE}/events/${editingEventId}`, formState);
+      // Convert the datetime-local string to a proper ISO string for the backend
+      const payload = {
+        ...formState,
+        schedule: formState.schedule ? new Date(formState.schedule).toISOString() : formState.schedule
+      };
+      await axios.put(`${API_BASE}/events/${editingEventId}`, payload);
       setIsModalOpen(false);
       fetchEvents(editingEventId);
     } catch (err) {
@@ -168,6 +195,27 @@ export default function Main() {
       fetchEvents();
     } catch (err) {
       alert('Failed to delete event: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Confirm a draft → set status to 'active'
+  const handleConfirmDraft = async (eventId) => {
+    try {
+      await axios.put(`${API_BASE}/events/${eventId}`, { status: 'active' });
+      fetchEvents();
+    } catch (err) {
+      alert('Failed to confirm event: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Delete a draft directly from the create page
+  const handleDeleteDraft = async (eventId) => {
+    if (!window.confirm('Delete this draft event?')) return;
+    try {
+      await axios.delete(`${API_BASE}/events/${eventId}`);
+      fetchEvents();
+    } catch (err) {
+      alert('Failed to delete draft: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -260,7 +308,8 @@ export default function Main() {
             </button>
           </div>
         ) : activeNav === 'create' ? (
-          <section className="create-event-container">
+          <section className="create-page-layout">
+            {/* ─── Left: Create Form ─── */}
             <div className="create-event-card">
               <h2>Event Registration</h2>
               <p>Fill out the fields below to schedule a new student club event.</p>
@@ -328,7 +377,7 @@ export default function Main() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Date & Time</label>
+                    <label>Date &amp; Time</label>
                     <input
                       type="datetime-local"
                       required
@@ -387,6 +436,63 @@ export default function Main() {
                 </div>
               </form>
             </div>
+
+            {/* ─── Right: Drafted Events Panel ─── */}
+            <div className="drafts-panel">
+              <div className="drafts-panel-header">
+                <h3>📄 Drafted Events</h3>
+                <span className="drafts-count">{events.filter(e => e.status === 'drafted').length}</span>
+              </div>
+
+              {events.filter(e => e.status === 'drafted').length === 0 ? (
+                <div className="drafts-empty">
+                  <span>📬</span>
+                  <p>No drafted events yet.</p>
+                </div>
+              ) : (
+                <div className="drafts-table-wrapper">
+                  <table className="drafts-table">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Date &amp; Time</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events
+                        .filter(e => e.status === 'drafted')
+                        .map(draft => (
+                          <tr key={draft._id}>
+                            <td className="draft-td-title">
+                              <span className="draft-title">{draft.title}</span>
+                              <span className="draft-club">{draft.organizingClub}</span>
+                            </td>
+                            <td className="draft-td-date">{formatDateTime(draft.schedule)}</td>
+                            <td className="draft-td-actions">
+                              <button
+                                className="btn-confirm-draft"
+                                title="Confirm &amp; Publish"
+                                onClick={() => handleConfirmDraft(draft._id)}
+                              >
+                                ✓ Confirm
+                              </button>
+                              <button
+                                className="btn-delete-draft"
+                                title="Delete Draft"
+                                onClick={() => handleDeleteDraft(draft._id)}
+                              >
+                                ✕ Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
         ) : (
           <>
@@ -394,6 +500,23 @@ export default function Main() {
 
             <div className="ems-workspace">
               <div className="events-column">
+                {/* Search Bar */}
+                <div className="search-bar-wrapper">
+                  <span className="search-icon">🔍</span>
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search by title, venue, club, type…"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button className="search-clear-btn" onClick={() => handleSearchChange('')} title="Clear search">
+                      ×
+                    </button>
+                  )}
+                </div>
+
                 <div className="events-column-header">
                   <h2>Events Catalog ({filteredEvents.length})</h2>
 
@@ -401,7 +524,7 @@ export default function Main() {
                     <select
                       className="select-filter"
                       value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
+                      onChange={(e) => handleFilterType(e.target.value)}
                     >
                       <option value="all">All Types</option>
                       <option value="seminar">Seminar</option>
@@ -416,11 +539,10 @@ export default function Main() {
                     <select
                       className="select-filter"
                       value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
+                      onChange={(e) => handleFilterStatus(e.target.value)}
                     >
                       <option value="all">All Statuses</option>
                       <option value="active">Active</option>
-                      <option value="drafted">Drafted</option>
                       <option value="completed">Completed</option>
                       <option value="postponed">Postponed</option>
                       <option value="cancelled">Cancelled</option>
@@ -434,66 +556,84 @@ export default function Main() {
                   <div className="no-events">
                     <div className="no-events-icon">🔎</div>
                     <h3>No Events Found</h3>
-                    <p>Try resetting filters or register a new event.</p>
+                    <p>Try a different search term or reset the filters.</p>
                   </div>
                 ) : (
-                  <div className="events-list">
-                    {filteredEvents.map((event) => (
-                      <div
-                        key={event._id}
-                        className={`event-card ${selectedEvent?._id === event._id ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedEvent(event);
-                        }}
+                  <>
+                    {/* Events Table */}
+                    <div className="events-table-wrapper">
+                      <table className="events-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Club</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Date &amp; Time</th>
+                            <th>Venue</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pagedEvents.map((event, idx) => (
+                            <tr key={event._id} className={selectedEvent?._id === event._id ? 'row-selected' : ''}>
+                              <td className="td-num" data-label="#">{(safePage - 1) * EVENTS_PER_PAGE + idx + 1}</td>
+                              <td className="td-title" data-label="Title">
+                                <span className="tbl-event-title">{event.title}</span>
+                              </td>
+                              <td className="td-club" data-label="Club">{event.organizingClub}</td>
+                              <td className="td-badge" data-label="Type">
+                                <span className="badge badge-type">{event.type}</span>
+                              </td>
+                              <td className="td-badge" data-label="Status">
+                                <span className={`badge badge-${event.status}`}>{event.status}</span>
+                              </td>
+                              <td className="td-date" data-label="Date">{formatDateTime(event.schedule)}</td>
+                              <td className="td-venue" data-label="Venue">{event.venue}</td>
+                              <td className="td-actions" data-label="Actions">
+                                <button
+                                  onClick={(e) => handleOpenEditModal(e, event)}
+                                  className="btn-text-edit"
+                                  title="Edit Event"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteEvent(e, event._id)}
+                                  className="btn-text-delete"
+                                  title="Delete Event"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls — always visible */}
+                    <div className="pagination-bar">
+                      <button
+                        className="page-btn"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={safePage === 1}
                       >
-                        <div className="event-card-header">
-                          <div className="event-title-group">
-                            <h2>{event.title}</h2>
-                            <div className="event-club">{event.organizingClub}</div>
-                          </div>
-
-                          <div className="badges-group">
-                            <span className="badge badge-type">{event.type}</span>
-                            <span className={`badge badge-${event.status}`}>{event.status}</span>
-                          </div>
-                        </div>
-
-                        <p className="event-desc">{event.description || 'No description provided.'}</p>
-
-                        <div className="event-details-grid">
-                          <div className="event-detail-item">
-                            <span className="event-detail-icon">📅</span>
-                            <span>{formatDateTime(event.schedule)}</span>
-                          </div>
-                          <div className="event-detail-item">
-                            <span className="event-detail-icon">📍</span>
-                            <span>{event.venue}</span>
-                          </div>
-                        </div>
-
-                        <div className="event-actions">
-                          {/* Attendees count removed */}
-
-                          <div className="card-action-btns">
-                            <button
-                              onClick={(e) => handleOpenEditModal(e, event)}
-                              className="btn-text-edit"
-                              title="Edit Event"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={(e) => handleDeleteEvent(e, event._id)}
-                              className="btn-text-delete"
-                              title="Delete Event"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        ← Prev
+                      </button>
+                      <span className="page-info">
+                        Page {safePage} of {totalPages} &nbsp;·&nbsp; {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+                      </span>
+                      <button
+                        className="page-btn"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={safePage === totalPages}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
 
